@@ -1,10 +1,18 @@
+import "server-only";
+
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/lib/db";
 import * as schema from "@/db/schema";
+const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
+if (!betterAuthSecret) {
+  throw new Error(
+    "BETTER_AUTH_SECRET is missing. Set it in .env.local (or your environment) and restart the server."
+  );
+}
 
 export const auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET,
+  secret: betterAuthSecret,
   database: drizzleAdapter(db, {
     provider: "pg",
     schema: {
