@@ -13,20 +13,36 @@ const incomeSchema = z.object({
     .number()
     .positive("Renda deve ser um valor positivo")
     .max(9999999.99),
-  month: z.coerce.number().int().min(1).max(12),
-  year: z.coerce.number().int().min(2020).max(2100),
+  month: z.coerce.number().int().min(1).max(12).optional(),
+  year: z.coerce.number().int().min(2020).max(2100).optional(),
   description: z.string().optional(),
 });
+
+function normalizeMoneyInput(value: unknown) {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.includes(",") && trimmed.includes(".")) {
+    return trimmed.replace(/\./g, "").replace(",", ".");
+  }
+  if (trimmed.includes(",")) {
+    return trimmed.replace(",", ".");
+  }
+  return trimmed;
+}
 
 export async function setIncome(formData: FormData) {
   const session = await requireAuth();
   const userId = session.user.id;
 
+  const rawMonth = formData.get("month");
+  const rawYear = formData.get("year");
+  const rawDescription = formData.get("description");
   const raw = {
-    monthlyIncome: formData.get("monthlyIncome"),
-    month: formData.get("month"),
-    year: formData.get("year"),
-    description: formData.get("description"),
+    monthlyIncome: normalizeMoneyInput(formData.get("monthlyIncome")),
+    month: rawMonth === null ? undefined : rawMonth,
+    year: rawYear === null ? undefined : rawYear,
+    description: typeof rawDescription === "string" ? rawDescription : undefined,
   };
 
   const parsed = incomeSchema.safeParse(raw);
@@ -34,7 +50,8 @@ export async function setIncome(formData: FormData) {
     return { error: parsed.error.errors[0].message };
   }
 
-  const { monthlyIncome, month, year, description } = parsed.data;
+  const { month: currentMonth, year: currentYear } = getCurrentMonthYear();
+  const { monthlyIncome, month = currentMonth, year = currentYear, description } = parsed.data;
 
   const existing = await db.query.income.findFirst({
     where: and(
@@ -63,7 +80,6 @@ export async function setIncome(formData: FormData) {
     });
   }
 
-  revalidatePath("/dashboard");
   return { success: true };
 }
 
