@@ -11,6 +11,19 @@ if (!betterAuthSecret) {
   );
 }
 
+const trustedOrigins = Array.from(
+  new Set(
+    [
+      process.env.BETTER_AUTH_URL,
+      process.env.NEXT_PUBLIC_APP_URL,
+      "http://localhost:3000",
+    ]
+      .flatMap((value) => (value ? value.split(",") : []))
+      .map((value) => value.trim())
+      .filter(Boolean)
+  )
+);
+
 export const auth = betterAuth({
   secret: betterAuthSecret,
   database: drizzleAdapter(db, {
@@ -34,7 +47,7 @@ export const auth = betterAuth({
       maxAge: 5 * 60,
     },
   },
-  trustedOrigins: [process.env.BETTER_AUTH_URL || "http://localhost:3000"],
+  trustedOrigins,
 });
 
 export type Session = typeof auth.$Infer.Session;
